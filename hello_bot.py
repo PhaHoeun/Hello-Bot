@@ -55,20 +55,20 @@ MODEL_NAME = raw_model if raw_model else "gemini-3.8-flash"
 # Natural human voice configuration
 # Sreymom (Female) is significantly softer, warmer, and more human-sounding than Piseth in Khmer.
 # Jenny (Female) / Brian (Male) provide natural, expressive, conversational everyday English speech.
-DEFAULT_VOICE_GENDER = os.environ.get("VOICE_GENDER", "female").lower()
+DEFAULT_VOICE_GENDER = os.environ.get("VOICE_GENDER", "male").lower()
 VOICE_RATE = os.environ.get("VOICE_RATE", "+0%")  # Natural conversational tempo
 VOICE_PITCH = os.environ.get("VOICE_PITCH", "+0Hz")
 
 VOICE_MAP = {
     "female": {
         "gemini_voice": "Aoede",  # Google AI Studio ultra-natural female voice
-        "khmer": "km-KH-SreymomNeural",
+        "khmer": "km-KH-AoedeNeural",
         "english": "en-US-JennyNeural",
-        "label": "ស្រី (Google AI Studio: Aoede / Sreymom)",
+        "label": "ស្រី (Google AI Studio: Aoede / Jenny)",
     },
     "male": {
         "gemini_voice": "Puck",   # Google AI Studio ultra-natural male voice
-        "khmer": "km-KH-PisethNeural",
+        "khmer": "km-KH-PuckNeural",
         "english": "en-US-BrianNeural",
         "label": "ប្រុស (Google AI Studio: Puck / Brian)",
     },
@@ -151,8 +151,6 @@ def get_ai_response(prompt: str) -> str | None:
         MODEL_NAME,
         "gemini-3.8-flash",
         "gemini-3.7-flash",
-        "gemini-3.6-flash",
-        "gemini-3.5-flash",
     ]
     # De-duplicate while preserving order
     seen = set()
@@ -207,10 +205,8 @@ def get_gemini_audio_response(prompt: str, voice_name: str = "Aoede") -> tuple[b
     # Supported models that can produce direct audio modality (using gemini-3.6-flash as recommended by Google)
     models_to_try = [
         MODEL_NAME,
-        "gemini-3.6-flash",
         "gemini-3.7-flash",
         "gemini-3.8-flash",
-        "gemini-2.0-flash",
     ]
     seen = set()
     models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
@@ -287,11 +283,11 @@ async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if args:
         chosen = args[0].lower()
-        if chosen in ["female", "girl", "woman", "aoede", "kore", "sreymom", "jenny", "ava", "ស្រី"]:
+        if chosen in ["female", "girl", "woman", "aoede", "jenny", "ស្រី"]:
             context.user_data["voice_gender"] = "female"
             await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ស្រី (Google AI Studio: Aoede)** ដែលស្តាប់ទៅដូចមនុស្សពិតៗ!", parse_mode="Markdown")
             return
-        elif chosen in ["male", "boy", "man", "puck", "charon", "fenrir", "piseth", "brian", "andrew", "ប្រុស"]:
+        elif chosen in ["male", "boy", "man", "puck", "brian", "ប្រុស"]:
             context.user_data["voice_gender"] = "male"
             await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ប្រុស (Google AI Studio: Puck)**!", parse_mode="Markdown")
             return
