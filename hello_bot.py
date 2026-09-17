@@ -31,8 +31,10 @@ except ImportError:
 # Optional google-genai
 try:
     from google import genai
+    from google.genai import types
 except ImportError:
     genai = None
+    types = None
 
 # Optional edge-tts
 try:
@@ -47,9 +49,9 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # Supported models: gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash
-# Fallback to gemini-2.5-flash if invalid/empty
-raw_model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
-MODEL_NAME = "gemini-3.8-flash" if "3.8" in raw_model else raw_model
+# Fallback to gemini-2.5-flash if invalid/empty/3.8
+raw_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+MODEL_NAME = "gemini-2.5-flash" if not raw_model or "3.8" in raw_model else raw_model
 
 ai_client = None
 if GEMINI_API_KEY and genai is not None:
@@ -92,18 +94,29 @@ def get_ai_response(prompt: str) -> str | None:
     if not ai_client:
         return "⚠️ Gemini AI client is not configured. Please verify GEMINI_API_KEY."
 
-    models_to_try = [MODEL_NAME, "gemini-3.8-flash"]
+    models_to_try = [MODEL_NAME, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     # De-duplicate while preserving order
     seen = set()
     models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
 
+    # Disable automatic function calling to avoid SDK warning on generate_content
+    gen_config = None
+    if types is not None:
+        try:
+            gen_config = types.GenerateContentConfig(
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)
+            )
+        except Exception:
+            gen_config = None
+
     for model in models_to_try:
         for attempt in range(2):
             try:
-                response = ai_client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                )
+                kwargs = {"model": model, "contents": prompt}
+                if gen_config:
+                    kwargs["config"] = gen_config
+
+                response = ai_client.models.generate_content(**kwargs)
                 if response and response.text:
                     return response.text.strip()
                 return None
@@ -122,7 +135,7 @@ def get_ai_response(prompt: str) -> str | None:
                     print("Gemini 429: API rate quota reached.", flush=True)
                     return "⚠️ API rate limit reached. Please try again in a few seconds."
                 print(f"Gemini API error with {model}: {err}", flush=True)
-                return None
+                break
     return None
 
 
