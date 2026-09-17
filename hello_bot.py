@@ -39,7 +39,7 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY is missing! Please set it in .env or environment variables.")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL_NAME = "gemini-3.5-flash-lite"
+MODEL_NAME = "gemini-3.8-flash"
 
 # =========================================================
 # RENDER HEALTH CHECK SERVER
