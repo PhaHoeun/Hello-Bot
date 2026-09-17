@@ -18,7 +18,7 @@ from telegram.ext import (
 # CONFIGURATION & API KEYS
 # =========================================================
 TELEGRAM_TOKEN = "8928549946:AAH-jgfKDgjeTp1J1V6GcRsGnSjhO8JfVl8"
-GEMINI_API_KEY = "AQ.Ab8RN6J5JSLWe_YyZnX-awUttOVM7b323w2oZYZMCWlOpzFj9w"
+GEMINI_API_KEY = "AQ.Ab8RN6J51oW6oRpzyUCGDGuTJQqoRkXYFyrfEAJn7NBVYI1Z9A"
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 MODEL_NAME = "gemini-3.5-flash-lite"
