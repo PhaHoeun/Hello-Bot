@@ -118,8 +118,7 @@ User message: {user_text}
 
         voice_file = f"voice_{update.message.message_id}.ogg"
         communicate = edge_tts.Communicate(reply_text, voice=voice_name)
-        await communicate.
-        save(voice_file)
+        await communicate.save(voice_file)
 
         with open(voice_file, "rb") as audio:
             await context.bot.send_voice(
