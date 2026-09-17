@@ -17,13 +17,11 @@ from telegram.ext import (
 # =========================================================
 # CONFIGURATION & API KEYS
 # =========================================================
-# WARNING: Rotate your keys! Do not share them publicly.
 TELEGRAM_TOKEN = "8928549946:AAH-jgfKDgjeTp1J1V6GcRsGnSjhO8JfVl8"
 GEMINI_API_KEY = "AQ.Ab8RN6J5JSLWe_YyZnX-awUttOVM7b323w2oZYZMCWlOpzFj9w"
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-# Changed to a valid model name (gemini-3.5-flash-lite does not exist yet)
-MODEL_NAME = "gemini-2.5-flash" 
+MODEL_NAME = "gemini-2.5-flash"
 
 # =========================================================
 # RENDER HEALTH CHECK SERVER
@@ -117,11 +115,11 @@ User message: {user_text}
             return
 
         print(f"Bot ឆ្លើយ: {reply_text}", flush=True)
-        
-        # Fixed the indentation error here
+
         voice_file = f"voice_{update.message.message_id}.ogg"
         communicate = edge_tts.Communicate(reply_text, voice=voice_name)
-        await communicate.save(voice_file)
+        await communicate.
+        save(voice_file)
 
         with open(voice_file, "rb") as audio:
             await context.bot.send_voice(
