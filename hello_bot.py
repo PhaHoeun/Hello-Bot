@@ -48,8 +48,8 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # Supported models: gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash
 # Fallback to gemini-2.5-flash if invalid/empty
-raw_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-MODEL_NAME = "gemini-2.5-flash" if "3.8" in raw_model else raw_model
+raw_model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+MODEL_NAME = "gemini-3.8-flash" if "3.8" in raw_model else raw_model
 
 ai_client = None
 if GEMINI_API_KEY and genai is not None:
@@ -92,7 +92,7 @@ def get_ai_response(prompt: str) -> str | None:
     if not ai_client:
         return "⚠️ Gemini AI client is not configured. Please verify GEMINI_API_KEY."
 
-    models_to_try = [MODEL_NAME, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models_to_try = [MODEL_NAME, "gemini-3.8-flash"]
     # De-duplicate while preserving order
     seen = set()
     models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
