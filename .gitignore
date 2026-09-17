@@ -1,0 +1,14 @@
+# Environment variables
+.env
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary audio files
+*.ogg
+
+# Operating System files
+.DS_Store
+Thumbs.db

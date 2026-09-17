@@ -1,0 +1,5 @@
+python-telegram-bot
+groq
+edge-tts
+google-genai
+python-dotenv
