@@ -204,8 +204,14 @@ def get_gemini_audio_response(prompt: str, voice_name: str = "Aoede") -> tuple[b
     if not ai_client or types is None:
         return None, None
 
-    # Supported models that can produce direct audio modality
-    models_to_try = ["gemini-2.0-flash", "gemini-2.5-flash", MODEL_NAME]
+    # Supported models that can produce direct audio modality (using gemini-3.6-flash as recommended by Google)
+    models_to_try = [
+        MODEL_NAME,
+        "gemini-3.6-flash",
+        "gemini-3.7-flash",
+        "gemini-3.8-flash",
+        "gemini-2.0-flash",
+    ]
     seen = set()
     models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
 
