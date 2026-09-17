@@ -14,32 +14,14 @@ from telegram.ext import (
     filters,
 )
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    env_path = os.path.join(os.path.dirname(__file__), ".env")
-    if os.path.isfile(env_path):
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, val = line.split("=", 1)
-                    os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
-
 # =========================================================
 # CONFIGURATION & API KEYS
 # =========================================================
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-
-if not TELEGRAM_TOKEN:
-    raise ValueError("TELEGRAM_TOKEN is missing! Please set it in .env or environment variables.")
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY is missing! Please set it in .env or environment variables.")
+TELEGRAM_TOKEN = "8928549946:AAH-jgfKDgjeTp1J1V6GcRsGnSjhO8JfVl8"
+GEMINI_API_KEY = "AQ.Ab8RN6J5JSLWe_YyZnX-awUttOVM7b323w2oZYZMCWlOpzFj9w"
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL_NAME = "gemini-3.8-flash"
+MODEL_NAME = "gemini-3.5-flash-lite"
 
 # =========================================================
 # RENDER HEALTH CHECK SERVER
@@ -133,8 +115,7 @@ User message: {user_text}
             return
 
         print(f"Bot ឆ្លើយ: {reply_text}", flush=True)
-
-        voice_file = f"voice_{update.message.message_id}.ogg"
+voice_file = f"voice_{update.message.message_id}.ogg"
         communicate = edge_tts.Communicate(reply_text, voice=voice_name)
         await communicate.save(voice_file)
 
