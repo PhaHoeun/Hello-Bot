@@ -48,10 +48,9 @@ except ImportError:
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# Supported models: gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash
-# Fallback to gemini-2.5-flash if invalid/empty/3.8
-raw_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
-MODEL_NAME = "gemini-2.5-flash" if not raw_model or "3.8" in raw_model else raw_model
+# Supported models: gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash
+raw_model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
+MODEL_NAME = raw_model if raw_model else "gemini-3.8-flash"
 
 ai_client = None
 if GEMINI_API_KEY and genai is not None:
@@ -94,7 +93,14 @@ def get_ai_response(prompt: str) -> str | None:
     if not ai_client:
         return "⚠️ Gemini AI client is not configured. Please verify GEMINI_API_KEY."
 
-    models_to_try = [MODEL_NAME, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    # Tiered models to try in order: latest 3.8 down to 3.7, 3.6, 3.5
+    models_to_try = [
+        MODEL_NAME,
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+    ]
     # De-duplicate while preserving order
     seen = set()
     models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
@@ -123,17 +129,18 @@ def get_ai_response(prompt: str) -> str | None:
             except Exception as err:
                 error_text = str(err)
                 if "404" in error_text:
-                    # Model not found, break out to try next fallback model
+                    # Model not supported or not found, fall back to next model immediately
                     print(f"Model {model} returned 404. Falling back to next model...", flush=True)
                     break
                 if "503" in error_text:
-                    wait_time = (attempt + 1) * 2
-                    print(f"Gemini 503 ({model}). Retrying in {wait_time}s...", flush=True)
+                    # High traffic / temporary server unavailability, retry with brief backoff
+                    wait_time = (attempt + 1) * 1.5
+                    print(f"Gemini 503 ({model}) - server busy. Retrying in {wait_time}s...", flush=True)
                     time.sleep(wait_time)
                     continue
                 if "429" in error_text:
-                    print("Gemini 429: API rate quota reached.", flush=True)
-                    return "⚠️ API rate limit reached. Please try again in a few seconds."
+                    print(f"Gemini 429 ({model}) rate limit reached. Trying next model...", flush=True)
+                    break
                 print(f"Gemini API error with {model}: {err}", flush=True)
                 break
     return None
