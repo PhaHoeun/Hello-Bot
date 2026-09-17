@@ -21,7 +21,7 @@ TELEGRAM_TOKEN = "8928549946:AAH-jgfKDgjeTp1J1V6GcRsGnSjhO8JfVl8"
 GEMINI_API_KEY = "AQ.Ab8RN6J5JSLWe_YyZnX-awUttOVM7b323w2oZYZMCWlOpzFj9w"
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-3.5-flash-lite"
 
 # =========================================================
 # RENDER HEALTH CHECK SERVER
