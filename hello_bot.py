@@ -154,7 +154,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "👋 **សួស្តី! Hello!**\n\n"
         "🤖 ខ្ញុំជា **AI Telegram Bot** ដំណើរការដោយ **Google Gemini**!\n"
-        "🎙️ ខ្ញុំអាចឆ្លើយជាសំឡេង និងជាអក្សរទាំងជាភាសាខ្មែរ និងភាសាអង់គ្លេស។\n\n"
+        "🎙️ ខ្ញុំឆ្លើយតបជាសំឡេងសុទ្ធ (Voice Message) ទាំងជាភាសាខ្មែរ និងភាសាអង់គ្លេស។\n\n"
         "✨ *សាកល្បងសួរសំណួរអ្វីមួយមកកាន់ខ្ញុំឥឡូវនេះ!*\n"
         "📌 វាយ `/help` ដើម្បីមើលព័ត៌មានបន្ថែម។"
     )
@@ -165,9 +165,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for /help command."""
     help_text = (
         "ℹ️ **ជំនួយ និងរបៀបប្រើប្រាស់ / Bot Help**:\n\n"
-        "1. គ្រាន់តែផ្ញើសារធម្មតា ខ្ញុំនឹងឆ្លើយតបមកវិញភ្លាមៗ។\n"
+        "1. គ្រាន់តែផ្ញើសារធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសំឡេងមកវិញភ្លាមៗ។\n"
         "2. ភាសាខ្មែរ (Khmer): ឆ្លើយតបជាសំឡេងភាសាខ្មែរធម្មជាតិ។\n"
-        "3. English: Reply with natural voice and text.\n\n"
+        "3. English: Reply with natural voice.\n\n"
         "⚙️ **Commands**:\n"
         "• `/start` - ចាប់ផ្តើម និងស្វាគមន៍\n"
         "• `/help` - មើលរបៀបប្រើប្រាស់"
@@ -231,15 +231,13 @@ User message: {user_text}
 
                 if os.path.exists(voice_file) and os.path.getsize(voice_file) > 0:
                     with open(voice_file, "rb") as audio:
-                        caption = reply_text if len(reply_text) <= 1024 else reply_text[:1020] + "..."
                         await context.bot.send_voice(
                             chat_id=chat_id,
                             voice=audio,
-                            caption=caption,
                             reply_to_message_id=update.message.message_id,
                         )
                     voice_sent = True
-                    print("Voice sent successfully!", flush=True)
+                    print("Voice sent successfully (pure voice, no text caption)!", flush=True)
             except Exception as tts_err:
                 print(f"TTS conversion failed: {tts_err}", flush=True)
             finally:
