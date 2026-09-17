@@ -245,6 +245,22 @@ User message: {user_text}
 
 
 # =========================================================
+# GLOBAL ERROR HANDLER
+# =========================================================
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    err_str = str(context.error)
+    if "Conflict" in err_str or "terminated by other getUpdates request" in err_str:
+        print(
+            "\n⚠️ [TELEGRAM CONFLICT]: Another bot instance is already running with this TELEGRAM_TOKEN!\n"
+            "👉 If your bot is deployed on Render, please stop the local python process.\n"
+            "👉 Telegram only permits ONE active polling instance per bot token at any time.\n",
+            flush=True,
+        )
+    else:
+        print(f"⚠️ Telegram bot error: {context.error}", flush=True)
+
+
+# =========================================================
 # START BOT APPLICATION
 # =========================================================
 def main():
@@ -270,9 +286,11 @@ def main():
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_error_handler(error_handler)
 
     print("🚀 Bot is now online and polling Telegram...", flush=True)
     app.run_polling(drop_pending_updates=True)
+
 
 
 if __name__ == "__main__":
