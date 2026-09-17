@@ -52,6 +52,52 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 raw_model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
 MODEL_NAME = raw_model if raw_model else "gemini-3.8-flash"
 
+# Natural human voice configuration
+# Sreymom (Female) is significantly more natural, soft, and human-sounding than Piseth in Khmer.
+# Ava (Female) / Andrew (Male) provide expressive, conversational human-grade English speech.
+DEFAULT_VOICE_GENDER = os.environ.get("VOICE_GENDER", "female").lower()
+VOICE_RATE = os.environ.get("VOICE_RATE", "-3%")  # Slight relaxed pacing for human cadence
+
+VOICE_MAP = {
+    "female": {
+        "khmer": "km-KH-SreymomNeural",
+        "english": "en-US-AvaMultilingualNeural",
+        "label": "ស្រី (Female - Sreymom / Ava)",
+    },
+    "male": {
+        "khmer": "km-KH-PisethNeural",
+        "english": "en-US-AndrewMultilingualNeural",
+        "label": "ប្រុស (Male - Piseth / Andrew)",
+    },
+}
+
+
+def clean_text_for_tts(text: str) -> str:
+    """Strip markdown formatting, emojis, and symbols so TTS sounds completely human and natural."""
+    # Remove markdown formatting characters
+    text = re.sub(r"[*_~`#>]", "", text)
+    # Remove markdown links [text](url) -> text
+    text = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", text)
+    # Remove bullet points
+    text = re.sub(r"^\s*[-*•]\s*", "", text, flags=re.MULTILINE)
+    # Remove emojis (which cause robotic pronunciation of symbol descriptions)
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"
+        "\U0001F300-\U0001F5FF"
+        "\U0001F680-\U0001F6FF"
+        "\U0001F1E0-\U0001F1FF"
+        "\U00002702-\U000027B0"
+        "\U000024C2-\U0001F251"
+        "\U0001F900-\U0001F9FF"
+        "\U0001FA70-\U0001FAFF"
+        "]+",
+        flags=re.UNICODE,
+    )
+    text = emoji_pattern.sub("", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
 ai_client = None
 if GEMINI_API_KEY and genai is not None:
     try:
@@ -154,8 +200,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "👋 **សួស្តី! Hello!**\n\n"
         "🤖 ខ្ញុំជា **AI Telegram Bot** ដំណើរការដោយ **Google Gemini**!\n"
-        "🎙️ ខ្ញុំឆ្លើយតបជាសំឡេងសុទ្ធ (Voice Message) ទាំងជាភាសាខ្មែរ និងភាសាអង់គ្លេស។\n\n"
-        "✨ *សាកល្បងសួរសំណួរអ្វីមួយមកកាន់ខ្ញុំឥឡូវនេះ!*\n"
+        "🎙️ ខ្ញុំឆ្លើយតបជា **សំឡេងមនុស្សពិតៗ (Natural Voice)** ទាំងជាភាសាខ្មែរ និងភាសាអង់គ្លេស។\n\n"
+        "✨ *សាកល្បងផ្ញើសារសួរសំណួរអ្វីមួយមកកាន់ខ្ញុំឥឡូវនេះ!*\n"
+        "📌 វាយ `/voice` ដើម្បីជ្រើសរើសសំឡេងស្រី ឬប្រុស\n"
         "📌 វាយ `/help` ដើម្បីមើលព័ត៌មានបន្ថែម។"
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown")
@@ -165,14 +212,43 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for /help command."""
     help_text = (
         "ℹ️ **ជំនួយ និងរបៀបប្រើប្រាស់ / Bot Help**:\n\n"
-        "1. គ្រាន់តែផ្ញើសារធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសំឡេងមកវិញភ្លាមៗ។\n"
-        "2. ភាសាខ្មែរ (Khmer): ឆ្លើយតបជាសំឡេងភាសាខ្មែរធម្មជាតិ។\n"
-        "3. English: Reply with natural voice.\n\n"
+        "1. គ្រាន់តែផ្ញើសារជាអក្សរធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសំឡេងធម្មជាតិមកវិញភ្លាមៗ។\n"
+        "2. ភាសាខ្មែរ (Khmer): សំឡេងខ្មែរទន់ភ្លន់ និងធម្មជាតិ (Sreymom / Piseth)។\n"
+        "3. English: Natural human conversational speech (Ava / Andrew)។\n\n"
         "⚙️ **Commands**:\n"
         "• `/start` - ចាប់ផ្តើម និងស្វាគមន៍\n"
+        "• `/voice` - ប្តូរសំឡេង (ស្រី / ប្រុស)\n"
         "• `/help` - មើលរបៀបប្រើប្រាស់"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
+
+
+async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handler for /voice command to switch between female and male natural voices."""
+    args = context.args
+    current_gender = context.user_data.get("voice_gender", DEFAULT_VOICE_GENDER)
+
+    if args:
+        chosen = args[0].lower()
+        if chosen in ["female", "girl", "woman", "sreymom", "ava", "ស្រី"]:
+            context.user_data["voice_gender"] = "female"
+            await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ស្រី (Female: Sreymom / Ava)** ដែលស្តាប់ទៅទន់ភ្លន់ និងដូចមនុស្សពិតៗបំផុត!", parse_mode="Markdown")
+            return
+        elif chosen in ["male", "boy", "man", "piseth", "andrew", "ប្រុស"]:
+            context.user_data["voice_gender"] = "male"
+            await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ប្រុស (Male: Piseth / Andrew)**!", parse_mode="Markdown")
+            return
+
+    # Toggle if no specific argument
+    new_gender = "male" if current_gender == "female" else "female"
+    context.user_data["voice_gender"] = new_gender
+    label = VOICE_MAP[new_gender]["label"]
+    await update.message.reply_text(
+        f"🎙️ **បានប្តូរសំឡេងទៅ**: {label}\n\n"
+        f"👉 វាយ `/voice female` សម្រាប់សំឡេងស្រី\n"
+        f"👉 វាយ `/voice male` សម្រាប់សំឡេងប្រុស",
+        parse_mode="Markdown",
+    )
 
 
 # =========================================================
@@ -191,26 +267,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         has_khmer = bool(re.search(r"[\u1780-\u17FF]", user_text))
+        user_gender = context.user_data.get("voice_gender", DEFAULT_VOICE_GENDER)
+        voice_info = VOICE_MAP.get(user_gender, VOICE_MAP["female"])
 
         if has_khmer:
             prompt = f"""
-អ្នកជាមិត្តភក្តិជិតស្និទ្ធម្នាក់ ដែលនិយាយភាសាខ្មែរបែបធម្មជាតិ។
-ឆ្លើយតបដូចជាមិត្តភក្តិដែលកំពុងនិយាយជាមួយគ្នា កុំប្រើភាសាផ្លូវការ កុំឱ្យស្តាប់ទៅដូចជា robot កុំសរសេរវែង។
-ឆ្លើយត្រឹម 1 ទៅ 2 ឃ្លា ប្រហែល 5 ទៅ 10 វិនាទីសម្រាប់និយាយ។
-បើសមរម្យ អាចប្រើពាក្យលេងសើចដូចជា "ហាហា" ឬ "ហិហិ" បាន។
+អ្នកជាមិត្តភក្តិជិតស្និទ្ធម្នាក់កំពុងផ្ញើសារសំឡេង (Voice Note) ទៅកាន់មិត្ត។
+និយាយឆ្លើយតបដូចមនុស្សធម្មតាពិតៗនិយាយគ្នាលេង រួសរាយ រាក់ទាក់ និងធម្មជាតិបំផុត។
+កុំឱ្យស្តាប់ទៅដូចជា AI, Robot, ឬអានសៀវភៅឱ្យសោះ។
+ឆ្លើយខ្លីៗត្រឹម 1 ទៅ 2 ឃ្លា (ប្រហែល 5 ទៅ 10 វិនាទី)។
+បើសមរម្យ អាចប្រើពាក្យធម្មជាតិដូចជា "ហាហា" "អរគុណច្រើនបង" "បាទ/ចាស" បាន។
+សំខាន់បំផុត៖ ហាមប្រើសញ្ញា * ហាមប្រើ emoji ហាមប្រើ markdown ព្រោះសារនេះនឹងត្រូវអានផ្ទាល់ជាសំឡេង។
 សាររបស់មិត្ត: {user_text}
 """
-            voice_name = "km-KH-PisethNeural"
+            voice_name = voice_info["khmer"]
         else:
             prompt = f"""
-You are a close, witty, and friendly friend.
-Reply naturally in casual conversational English.
-Do not sound like a robot. Do not sound like a textbook.
-Keep the answer short and natural.
-Reply with only 1 or 2 sentences, around 5 to 10 seconds of speech.
-User message: {user_text}
+You are recording a friendly voice message for a close friend.
+Speak completely like a real, authentic human friend in everyday casual conversation.
+Do not sound like an AI assistant, customer service, or a script. Keep it warm, expressive, and effortless.
+Reply with only 1 or 2 spoken sentences (about 5 to 10 seconds).
+Crucial requirement: Do NOT include any emojis, asterisks (*), hashtags (#), bullet points, or markdown formatting, because this will be spoken aloud directly into a voice note.
+Friend's message: {user_text}
 """
-            voice_name = "en-US-AndrewNeural"
+            voice_name = voice_info["english"]
 
         # Generate response using Gemini in a background worker thread
         reply_text = await asyncio.to_thread(get_ai_response, prompt)
@@ -220,13 +300,18 @@ User message: {user_text}
 
         print(f"Bot response: {reply_text}", flush=True)
 
-        # Attempt to synthesize speech with edge-tts
+        # Strip emojis and markdown formatting to guarantee completely natural speech
+        clean_speech = clean_text_for_tts(reply_text)
+        if not clean_speech:
+            clean_speech = reply_text
+
+        # Synthesize speech with edge-tts using natural human pacing
         voice_sent = False
         voice_file = f"voice_{uuid.uuid4().hex[:8]}_{update.message.message_id}.ogg"
 
         if edge_tts is not None:
             try:
-                communicate = edge_tts.Communicate(reply_text, voice=voice_name)
+                communicate = edge_tts.Communicate(clean_speech, voice=voice_name, rate=VOICE_RATE)
                 await communicate.save(voice_file)
 
                 if os.path.exists(voice_file) and os.path.getsize(voice_file) > 0:
@@ -237,7 +322,7 @@ User message: {user_text}
                             reply_to_message_id=update.message.message_id,
                         )
                     voice_sent = True
-                    print("Voice sent successfully (pure voice, no text caption)!", flush=True)
+                    print(f"Voice sent successfully using {voice_name} (pure voice)!", flush=True)
             except Exception as tts_err:
                 print(f"TTS conversion failed: {tts_err}", flush=True)
             finally:
@@ -303,6 +388,7 @@ def main():
     # Register handlers
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("voice", voice_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_error_handler(error_handler)
 
