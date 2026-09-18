@@ -39,6 +39,12 @@ except ImportError:
     genai = None
     types = None
 
+# Optional gTTS (Google Voice / Text-to-Speech)
+try:
+    from gtts import gTTS
+except ImportError:
+    gTTS = None
+
 # =========================================================
 # CONFIGURATION & API KEYS
 # =========================================================
@@ -119,6 +125,24 @@ def clean_text_for_tts(text: str) -> str:
     )
     text = emoji_pattern.sub("", text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def generate_google_tts_audio(text: str, lang: str = "km") -> bytes | None:
+    """Generate natural voice audio bytes using Google Voice (Khmer 'km' or English 'en')."""
+    if not gTTS or not text:
+        return None
+    try:
+        clean = clean_text_for_tts(text)
+        if not clean:
+            clean = text
+        tts = gTTS(text=clean, lang=lang, slow=False)
+        buf = io.BytesIO()
+        tts.write_to_fp(buf)
+        buf.seek(0)
+        return buf.read()
+    except Exception as e:
+        print(f"Google Voice synthesis error: {e}", flush=True)
+        return None
 
 
 ai_client = None
@@ -275,9 +299,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "👋 **សួស្តី! Hello!**\n\n"
         "🤖 ខ្ញុំជា **AI Telegram Bot** ដំណើរការដោយ **Google Gemini**!\n"
-        "🎙️ ខ្ញុំឆ្លើយតបជា **សំឡេង Google AI Studio (Aoede / Puck)** ដោយផ្ទាល់។\n\n"
+        "🎙️ ខ្ញុំឆ្លើយតបជា **សារសំឡេង Google Voice** ទាំងភាសាខ្មែរ 🇰🇭 និងអង់គ្លេស 🇺🇸។\n\n"
         "✨ *សាកល្បងផ្ញើសារសួរសំណួរអ្វីមួយមកកាន់ខ្ញុំឥឡូវនេះ!*\n"
-        "📌 វាយ `/voice` ដើម្បីជ្រើសរើសសំឡេងស្រី ឬប្រុស\n"
         "📌 វាយ `/help` ដើម្បីមើលព័ត៌មានបន្ថែម។"
     )
     await update.message.reply_text(welcome_text, parse_mode="Markdown")
@@ -287,40 +310,24 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for /help command."""
     help_text = (
         "ℹ️ **ជំនួយ និងរបៀបប្រើប្រាស់ / Bot Help**:\n\n"
-        "1. ផ្ញើសារជាអក្សរធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសំឡេងមនុស្សពិតៗមកវិញភ្លាមៗ។\n"
-        "2. 🎙️ **Google AI Studio Voices**: Aoede (ស្រី) & Puck (ប្រុស) សំឡេងមនុស្សពិត ១០០%។\n\n"
+        "1. ផ្ញើសារជាអក្សរធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសារសំឡេងមនុស្សពិតៗ (Google Voice Note) មកវិញភ្លាមៗ។\n"
+        "2. 🇰🇭 ភាសាខ្មែរ: សំឡេង Google Khmer Voice ធម្មជាតិទន់ភ្លន់។\n"
+        "3. 🇺🇸 ភាសាអង់គ្លេស: សំឡេង Google English Voice។\n\n"
         "⚙️ **Commands**:\n"
         "• `/start` - ចាប់ផ្តើម និងស្វាគមន៍\n"
-        "• `/voice` - ប្តូរសំឡេង (Aoede / Puck)\n"
+        "• `/voice` - ព័ត៌មានពីសំឡេង Google Voice\n"
         "• `/help` - មើលរបៀបប្រើប្រាស់"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 
 async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler for /voice command to switch between female and male Google AI Studio voices."""
-    args = context.args
-    current_gender = context.user_data.get("voice_gender", DEFAULT_VOICE_GENDER)
-
-    if args:
-        chosen = args[0].lower()
-        if chosen in ["female", "girl", "woman", "aoede", "kore", "ស្រី"]:
-            context.user_data["voice_gender"] = "female"
-            await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ស្រី (Google AI Studio: Aoede)**!", parse_mode="Markdown")
-            return
-        elif chosen in ["male", "boy", "man", "puck", "charon", "fenrir", "ប្រុស"]:
-            context.user_data["voice_gender"] = "male"
-            await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ប្រុស (Google AI Studio: Puck)**!", parse_mode="Markdown")
-            return
-
-    # Toggle if no specific argument
-    new_gender = "male" if current_gender == "female" else "female"
-    context.user_data["voice_gender"] = new_gender
-    label = VOICE_MAP[new_gender]["label"]
+    """Handler for /voice command."""
     await update.message.reply_text(
-        f"🎙️ **បានប្តូរសំឡេងទៅ**: {label}\n\n"
-        f"👉 វាយ `/voice female` សម្រាប់សំឡេងស្រី (Aoede)\n"
-        f"👉 វាយ `/voice male` សម្រាប់សំឡេងប្រុស (Puck)",
+        "🎙️ **Google Voice Configuration**:\n\n"
+        "• 🇰🇭 **ភាសាខ្មែរ**: សំឡេងផ្លូវការ Google Khmer Voice\n"
+        "• 🇺🇸 **English**: Google English Voice\n\n"
+        "✨ រាល់ពេលអ្នកផ្ញើសារមក Bot នឹងឆ្លើយតបជាសំឡេង Voice Note ដោយស្វ័យប្រវត្តិ!",
         parse_mode="Markdown",
     )
 
@@ -341,9 +348,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         has_khmer = bool(re.search(r"[\u1780-\u17FF]", user_text))
-        user_gender = context.user_data.get("voice_gender", DEFAULT_VOICE_GENDER)
-        voice_info = VOICE_MAP.get(user_gender, VOICE_MAP["female"])
-        gemini_voice = voice_info.get("gemini_voice", "Aoede")
 
         if has_khmer:
             prompt = f"""
@@ -368,58 +372,60 @@ Crucial rules to sound completely human (NOT like an AI assistant or robot):
 Friend's message: {user_text}
 """
 
-        # 1. Generate Google AI Studio native human voice
+        # 1. Get smart response from Gemini AI
+        reply_text = await asyncio.to_thread(get_ai_response, prompt)
+        if not reply_text:
+            await update.message.reply_text("សូមអភ័យទោស ខ្ញុំមិនអាចឆ្លើយតបបានទេនៅពេលនេះ។ សូមព្យាយាមម្តងទៀត!")
+            return
+
+        print(f"Bot response: {reply_text}", flush=True)
+
+        # 2. Synthesize Google Voice Note (Khmer 'km' or English 'en')
         voice_sent = False
-        audio_bytes, gemini_text = await asyncio.to_thread(get_gemini_audio_response, prompt, gemini_voice)
+        lang = "km" if has_khmer else "en"
+        audio_bytes = await asyncio.to_thread(generate_google_tts_audio, reply_text, lang)
 
         if audio_bytes:
-            voice_file_gemini = f"voice_gemini_{uuid.uuid4().hex[:8]}_{update.message.message_id}.wav"
+            voice_file = f"voice_google_{uuid.uuid4().hex[:8]}_{update.message.message_id}.mp3"
             try:
-                with open(voice_file_gemini, "wb") as f:
+                with open(voice_file, "wb") as f:
                     f.write(audio_bytes)
 
-                if os.path.exists(voice_file_gemini) and os.path.getsize(voice_file_gemini) > 0:
-                    with open(voice_file_gemini, "rb") as audio:
+                if os.path.exists(voice_file) and os.path.getsize(voice_file) > 0:
+                    with open(voice_file, "rb") as audio:
                         try:
                             await context.bot.send_voice(
                                 chat_id=chat_id,
                                 voice=audio,
-                                caption=gemini_text if gemini_text else None,
+                                caption=reply_text,
                                 reply_to_message_id=update.message.message_id,
                             )
                             voice_sent = True
-                        except Exception:
-                            # If send_voice rejects WAV container, send as audio file
+                        except Exception as send_voice_err:
+                            print(f"send_voice fallback to send_audio: {send_voice_err}", flush=True)
                             audio.seek(0)
                             await context.bot.send_audio(
                                 chat_id=chat_id,
                                 audio=audio,
-                                title=f"Voice Note ({gemini_voice})",
-                                caption=gemini_text if gemini_text else None,
+                                title="Google Voice Note",
+                                caption=reply_text,
                                 reply_to_message_id=update.message.message_id,
                             )
                             voice_sent = True
 
                     if voice_sent:
-                        print(f"✅ Sent Google AI Studio voice ({gemini_voice}) successfully!", flush=True)
-            except Exception as gemini_voice_err:
-                print(f"Error delivering Gemini native audio: {gemini_voice_err}", flush=True)
+                        print(f"✅ Sent Google Voice Note successfully ({lang})!", flush=True)
+            except Exception as voice_err:
+                print(f"Error delivering Google voice note: {voice_err}", flush=True)
             finally:
-                if os.path.exists(voice_file_gemini):
+                if os.path.exists(voice_file):
                     try:
-                        os.remove(voice_file_gemini)
+                        os.remove(voice_file)
                     except OSError:
                         pass
 
-        # 2. If voice couldn't be generated, fallback directly to text message (NO edge-tts)
+        # 3. If voice generation failed, fallback directly to text message
         if not voice_sent:
-            reply_text = gemini_text or await asyncio.to_thread(get_ai_response, prompt)
-            if not reply_text:
-                await update.message.reply_text("សូមអភ័យទោស ខ្ញុំមិនអាចឆ្លើយតបបានទេនៅពេលនេះ។ សូមព្យាយាមម្តងទៀត!")
-                return
-
-            print(f"Bot response: {reply_text}", flush=True)
-
             await update.message.reply_text(
                 reply_text,
                 reply_to_message_id=update.message.message_id,
