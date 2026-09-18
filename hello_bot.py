@@ -39,11 +39,11 @@ except ImportError:
     genai = None
     types = None
 
-# Optional gTTS (Google Voice / Text-to-Speech)
+# Optional edge-tts (Natural Neural Speech)
 try:
-    from gtts import gTTS
+    import edge_tts
 except ImportError:
-    gTTS = None
+    edge_tts = None
 
 # =========================================================
 # CONFIGURATION & API KEYS
@@ -55,46 +55,11 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 raw_model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
 MODEL_NAME = raw_model if raw_model else "gemini-3.8-flash"
 
-# Google AI Studio human voice configuration (Aoede, Puck, Charon, Fenrir, Kore)
-DEFAULT_VOICE_GENDER = os.environ.get("VOICE_GENDER", "male").lower()
-
-VOICE_MAP = {
-    "female": {
-        "gemini_voice": "Aoede",  # Google AI Studio female voice
-        "label": "ស្រី (Google AI Studio: Aoede)",
-    },
-    "male": {
-        "gemini_voice": "Puck",   # Google AI Studio male voice
-        "label": "ប្រុស (Google AI Studio: Puck)",
-    },
-}
-
-
-def pcm_to_wav_bytes(audio_bytes: bytes, mime_type: str = "") -> bytes:
-    """Convert raw 16-bit PCM from Google AI Studio into a valid WAV format for Telegram."""
-    if not audio_bytes:
-        return audio_bytes
-    # If it already contains RIFF/WAV header, return directly
-    if len(audio_bytes) > 4 and audio_bytes[:4] == b"RIFF":
-        return audio_bytes
-
-    sample_rate = 24000
-    if mime_type and "rate=" in mime_type:
-        match = re.search(r"rate=(\d+)", mime_type)
-        if match:
-            try:
-                sample_rate = int(match.group(1))
-            except ValueError:
-                pass
-
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wav_out:
-        wav_out.setnchannels(1)       # Mono
-        wav_out.setsampwidth(2)       # 16-bit PCM = 2 bytes per sample
-        wav_out.setframerate(sample_rate)
-        wav_out.writeframes(audio_bytes)
-    return buf.getvalue()
-
+# Natural human voice configuration (Sreymom Neural Khmer)
+KHMER_VOICE = "km-KH-SreymomNeural"
+ENGLISH_VOICE = "en-US-JennyNeural"
+VOICE_RATE = os.environ.get("VOICE_RATE", "-4%")     # Slightly relaxed tempo for authentic human cadence
+VOICE_PITCH = os.environ.get("VOICE_PITCH", "+1Hz")  # Warm, gentle, friendly human tone
 
 
 def clean_text_for_tts(text: str) -> str:
@@ -125,24 +90,6 @@ def clean_text_for_tts(text: str) -> str:
     )
     text = emoji_pattern.sub("", text)
     return re.sub(r"\s+", " ", text).strip()
-
-
-def generate_google_tts_audio(text: str, lang: str = "km") -> bytes | None:
-    """Generate natural voice audio bytes using Google Voice (Khmer 'km' or English 'en')."""
-    if not gTTS or not text:
-        return None
-    try:
-        clean = clean_text_for_tts(text)
-        if not clean:
-            clean = text
-        tts = gTTS(text=clean, lang=lang, slow=False)
-        buf = io.BytesIO()
-        tts.write_to_fp(buf)
-        buf.seek(0)
-        return buf.read()
-    except Exception as e:
-        print(f"Google Voice synthesis error: {e}", flush=True)
-        return None
 
 
 ai_client = None
@@ -239,58 +186,6 @@ def get_ai_response(prompt: str) -> str | None:
     return None
 
 
-def get_gemini_audio_response(prompt: str, voice_name: str = "Aoede") -> tuple[bytes | None, str | None]:
-    """Generate human speech directly using Google AI Studio native voices (Aoede, Puck, Kore, Fenrir, Charon)."""
-    if not ai_client or types is None:
-        return None, None
-
-    # Google AI Studio models supporting native audio modality
-    models_to_try = [
-        "gemini-2.0-flash",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash-lite",
-        MODEL_NAME,
-    ]
-    seen = set()
-    models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
-
-    for model in models_to_try:
-        try:
-            config = types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
-                    )
-                ),
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-            )
-            response = ai_client.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=config,
-            )
-            if response and response.candidates:
-                candidate = response.candidates[0]
-                audio_bytes = None
-                text_content = ""
-                mime_type = ""
-                if candidate.content and candidate.content.parts:
-                    for part in candidate.content.parts:
-                        if getattr(part, "inline_data", None) and part.inline_data.data:
-                            audio_bytes = part.inline_data.data
-                            mime_type = getattr(part.inline_data, "mime_type", "") or ""
-                        if getattr(part, "text", None):
-                            text_content += part.text
-                if audio_bytes:
-                    wav_data = pcm_to_wav_bytes(audio_bytes, mime_type)
-                    return wav_data, text_content.strip()
-        except Exception as err:
-            print(f"Gemini native audio with {model} unavailable: {err}", flush=True)
-            continue
-    return None, None
-
-
 # =========================================================
 # TELEGRAM COMMAND HANDLERS
 # =========================================================
@@ -299,7 +194,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "👋 **សួស្តី! Hello!**\n\n"
         "🤖 ខ្ញុំជា **AI Telegram Bot** ដំណើរការដោយ **Google Gemini**!\n"
-        "🎙️ ខ្ញុំឆ្លើយតបជា **សារសំឡេង Google Voice** ទាំងភាសាខ្មែរ 🇰🇭 និងអង់គ្លេស 🇺🇸។\n\n"
+        "🎙️ ខ្ញុំឆ្លើយតបជា **សារសំឡេង Neural AI (Sreymom)** ស្រទន់ រួសរាយ និងធម្មជាតិដូចមនុស្សពិត។\n\n"
         "✨ *សាកល្បងផ្ញើសារសួរសំណួរអ្វីមួយមកកាន់ខ្ញុំឥឡូវនេះ!*\n"
         "📌 វាយ `/help` ដើម្បីមើលព័ត៌មានបន្ថែម។"
     )
@@ -310,12 +205,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for /help command."""
     help_text = (
         "ℹ️ **ជំនួយ និងរបៀបប្រើប្រាស់ / Bot Help**:\n\n"
-        "1. ផ្ញើសារជាអក្សរធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសារសំឡេងមនុស្សពិតៗ (Google Voice Note) មកវិញភ្លាមៗ។\n"
-        "2. 🇰🇭 ភាសាខ្មែរ: សំឡេង Google Khmer Voice ធម្មជាតិទន់ភ្លន់។\n"
-        "3. 🇺🇸 ភាសាអង់គ្លេស: សំឡេង Google English Voice។\n\n"
+        "1. ផ្ញើសារជាអក្សរធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសារសំឡេង (Voice Note) ស្រទន់ធម្មជាតិមកវិញភ្លាមៗ។\n"
+        "2. 🇰🇭 ភាសាខ្មែរ: សំឡេង Sreymom Neural ធម្មជាតិទន់ភ្លន់។\n"
+        "3. 🇺🇸 ភាសាអង់គ្លេស: សំឡេង Jenny Neural។\n\n"
         "⚙️ **Commands**:\n"
         "• `/start` - ចាប់ផ្តើម និងស្វាគមន៍\n"
-        "• `/voice` - ព័ត៌មានពីសំឡេង Google Voice\n"
+        "• `/voice` - ព័ត៌មានពីសំឡេង Voice Note\n"
         "• `/help` - មើលរបៀបប្រើប្រាស់"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
@@ -324,10 +219,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for /voice command."""
     await update.message.reply_text(
-        "🎙️ **Google Voice Configuration**:\n\n"
-        "• 🇰🇭 **ភាសាខ្មែរ**: សំឡេងផ្លូវការ Google Khmer Voice\n"
-        "• 🇺🇸 **English**: Google English Voice\n\n"
-        "✨ រាល់ពេលអ្នកផ្ញើសារមក Bot នឹងឆ្លើយតបជាសំឡេង Voice Note ដោយស្វ័យប្រវត្តិ!",
+        "🎙️ **Natural Voice Settings**:\n\n"
+        "• 🇰🇭 **ភាសាខ្មែរ**: សំឡេងស្រី Sreymom Neural (ទន់ភ្លន់ ធម្មជាតិ)\n"
+        "• 🇺🇸 **English**: សំឡេង Jenny Neural\n\n"
+        "✨ រាល់សារដែលអ្នកផ្ញើមក Bot នឹងឆ្លើយតបជា Voice Note ភ្លាមៗ!",
         parse_mode="Markdown",
     )
 
@@ -351,18 +246,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if has_khmer:
             prompt = f"""
-អ្នកជាមិត្តភក្តិជិតស្និទ្ធម្នាក់កំពុងផ្ញើសារសំឡេង (Voice Note) តាម Telegram ទៅកាន់មិត្ត។
-ច្បាប់សំខាន់បំផុត ដើម្បីកុំឱ្យសំឡេងស្តាប់ទៅដូចជា Robot ឬ AI:
+អ្នកជាមិត្តភក្តិជិតស្និទ្ធម្នាក់ កំពុងផ្ញើសារសំឡេង (Voice Note) តាម Telegram ទៅកាន់មិត្ត។
+ច្បាប់សំខាន់បំផុត ដើម្បីឱ្យសំឡេងនិយាយចេញមកពិរោះ ស្រទន់ ដូចមនុស្សពិត ១០០%:
 1. ត្រូវប្រើភាសានិយាយប្រចាំថ្ងៃ (Spoken Khmer) ធម្មជាតិៗ រួសរាយ រាក់ទាក់ កក់ក្តៅ និងមានជីវិតជីវ៉ា។
 2. ហាមដាច់ខាតប្រើភាសាផ្លូវការ រដ្ឋបាល ឬភាសាសៀវភៅ ដូចជា "តើខ្ញុំអាចជួយអ្វីបាន"។
-3. អាចប្រើពាក្យធម្មជាតិដូចជា "បាទបង/ចាសបង", "អរគុណច្រើន!", "ហ្នឹងហើយ", "អូ!", "មែនតើ" តាមការគួរសម។
+3. ចាប់ផ្តើមដោយពាក្យរួសរាយដូចជា "ចាសបង!", "អូ សួស្តីបង!", "បងអើយ!", "ហ្នឹងហើយបង", "អរគុណច្រើនបង!" តាមការគួរសម។
 4. ឆ្លើយខ្លីៗល្មមស្តាប់ត្រឹម 1 ទៅ 2 ឃ្លា (ប្រហែល 5 ទៅ 10 វិនាទី)។
-5. ហាមប្រើសញ្ញាផ្កាយ (*), hashtag (#), emoji ឬ markdown ព្រោះសារនេះនឹងត្រូវអានផ្ទាល់ជាសំឡេង។
+5. សំខាន់បំផុត៖ ត្រូវដាក់ដកឃ្លា ឬសញ្ញាក្បៀស (,) និងសញ្ញាខណ្ឌ (។) ឱ្យបានត្រឹមត្រូវចន្លោះឃ្លានីមួយៗ ដើម្បីឱ្យអ្នកនិយាយមានដង្ហើមដក និងចង្វាក់ដូចមនុស្សពិត។
+6. ហាមប្រើសញ្ញាផ្កាយ (*), hashtag (#), emoji ឬ markdown ព្រោះសារនេះនឹងត្រូវអានផ្ទាល់ជាសំឡេង។
 សាររបស់មិត្ត: {user_text}
 """
         else:
             prompt = f"""
-You are recording a quick, authentic voice note on Telegram for a close friend.
+You are recording a quick, warm, authentic voice note on Telegram for a close friend.
 Crucial rules to sound completely human (NOT like an AI assistant or robot):
 1. Speak in casual, conversational everyday speech. Sound warm, relaxed, and spontaneous.
 2. Absolutely DO NOT sound like a robotic customer service bot (never say "How may I assist you today?" or "As an AI...").
@@ -380,16 +276,21 @@ Friend's message: {user_text}
 
         print(f"Bot response: {reply_text}", flush=True)
 
-        # 2. Synthesize Google Voice Note (Khmer 'km' or English 'en')
+        # 2. Synthesize High-Fidelity Natural Voice (Sreymom for Khmer, Jenny for English)
         voice_sent = False
-        lang = "km" if has_khmer else "en"
-        audio_bytes = await asyncio.to_thread(generate_google_tts_audio, reply_text, lang)
+        voice_name = KHMER_VOICE if has_khmer else ENGLISH_VOICE
+        clean_speech = clean_text_for_tts(reply_text) or reply_text
 
-        if audio_bytes:
-            voice_file = f"voice_google_{uuid.uuid4().hex[:8]}_{update.message.message_id}.mp3"
+        if edge_tts is not None:
+            voice_file = f"voice_{uuid.uuid4().hex[:8]}_{update.message.message_id}.ogg"
             try:
-                with open(voice_file, "wb") as f:
-                    f.write(audio_bytes)
+                communicate = edge_tts.Communicate(
+                    clean_speech,
+                    voice=voice_name,
+                    rate=VOICE_RATE,
+                    pitch=VOICE_PITCH,
+                )
+                await communicate.save(voice_file)
 
                 if os.path.exists(voice_file) and os.path.getsize(voice_file) > 0:
                     with open(voice_file, "rb") as audio:
@@ -407,16 +308,16 @@ Friend's message: {user_text}
                             await context.bot.send_audio(
                                 chat_id=chat_id,
                                 audio=audio,
-                                title="Google Voice Note",
+                                title=f"Voice Note ({'Sreymom' if has_khmer else 'Jenny'})",
                                 caption=reply_text,
                                 reply_to_message_id=update.message.message_id,
                             )
                             voice_sent = True
 
                     if voice_sent:
-                        print(f"✅ Sent Google Voice Note successfully ({lang})!", flush=True)
+                        print(f"✅ Sent natural voice note successfully ({voice_name})!", flush=True)
             except Exception as voice_err:
-                print(f"Error delivering Google voice note: {voice_err}", flush=True)
+                print(f"Error delivering natural voice note: {voice_err}", flush=True)
             finally:
                 if os.path.exists(voice_file):
                     try:
@@ -424,7 +325,7 @@ Friend's message: {user_text}
                     except OSError:
                         pass
 
-        # 3. If voice generation failed, fallback directly to text message
+        # 3. Fallback to text message if voice synthesis failed
         if not voice_sent:
             await update.message.reply_text(
                 reply_text,
