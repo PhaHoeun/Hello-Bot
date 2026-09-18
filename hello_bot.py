@@ -55,22 +55,22 @@ MODEL_NAME = raw_model if raw_model else "gemini-3.8-flash"
 # Natural human voice configuration
 # Sreymom (Female) is significantly softer, warmer, and more human-sounding than Piseth in Khmer.
 # Jenny (Female) / Brian (Male) provide natural, expressive, conversational everyday English speech.
-DEFAULT_VOICE_GENDER = os.environ.get("VOICE_GENDER", "female").lower()
+DEFAULT_VOICE_GENDER = os.environ.get("VOICE_GENDER", "male").lower()
 VOICE_RATE = os.environ.get("VOICE_RATE", "+0%")  # Natural conversational tempo
 VOICE_PITCH = os.environ.get("VOICE_PITCH", "+0Hz")
 
 VOICE_MAP = {
     "female": {
         "gemini_voice": "Aoede",  # Google AI Studio ultra-natural female voice
-        "khmer": "km-KH-SreymomNeural",
-        "english": "en-US-JennyNeural",
-        "label": "ស្រី (Google AI Studio: Aoede / Sreymom)",
+        "khmer": "km-KH-kore",
+        "english": "en-US-Jenny",
+        "label": "ស្រី (Google AI Studio: Aoede / kore)",
     },
     "male": {
         "gemini_voice": "Puck",   # Google AI Studio ultra-natural male voice
-        "khmer": "km-KH-PisethNeural",
-        "english": "en-US-BrianNeural",
-        "label": "ប្រុស (Google AI Studio: Puck / Brian)",
+        "khmer": "km-KH-charon",
+        "english": "en-US-Brian",
+        "label": "ប្រុស (Google AI Studio: Puck / charon)",
     },
 }
 
@@ -271,7 +271,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "ℹ️ **ជំនួយ និងរបៀបប្រើប្រាស់ / Bot Help**:\n\n"
         "1. ផ្ញើសារជាអក្សរធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសំឡេងមនុស្សពិតៗមកវិញភ្លាមៗ។\n"
         "2. 🎙️ **Google AI Studio Voices**: Aoede (ស្រី) & Puck (ប្រុស) សំឡេងមនុស្សពិត ១០០%។\n"
-        "3. 🇰🇭 ភាសាខ្មែរ: សំឡេង Sreymom / Piseth ធម្មជាតិទន់ភ្លន់។\n\n"
+        "3. 🇰🇭 ភាសាខ្មែរ: សំឡេង kore / charon ធម្មជាតិទន់ភ្លន់។\n\n"
         "⚙️ **Commands**:\n"
         "• `/start` - ចាប់ផ្តើម និងស្វាគមន៍\n"
         "• `/voice` - ប្តូរសំឡេង (Aoede / Puck)\n"
@@ -287,11 +287,11 @@ async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if args:
         chosen = args[0].lower()
-        if chosen in ["female", "girl", "woman", "aoede", "kore", "sreymom", "jenny", "ava", "ស្រី"]:
+        if chosen in ["female", "girl", "woman", "aoede", "kore", "jenny", "ស្រី"]:
             context.user_data["voice_gender"] = "female"
             await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ស្រី (Google AI Studio: Aoede)** ដែលស្តាប់ទៅដូចមនុស្សពិតៗ!", parse_mode="Markdown")
             return
-        elif chosen in ["male", "boy", "man", "puck", "charon", "fenrir", "piseth", "brian", "andrew", "ប្រុស"]:
+        elif chosen in ["male", "boy", "man", "puck", "charon", "brian", "ប្រុស"]:
             context.user_data["voice_gender"] = "male"
             await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ប្រុស (Google AI Studio: Puck)**!", parse_mode="Markdown")
             return
