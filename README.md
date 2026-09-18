@@ -10,7 +10,7 @@ An intelligent Telegram AI Bot built with **Python**, powered by **Google Gemini
 - 🎙️ **Natural Human Voice Notes**: Generates gentle, natural-sounding voice notes:
   - 🇰🇭 **Khmer voice**: `km-KH-SreymomNeural` (tuned with warm, natural cadence)
   - 🇺🇸 **English voice**: `en-US-JennyNeural`
-  - Voice bubbles include message text as a caption, with automatic clean text fallback if audio synthesis fails.
+  - Voice bubbles are sent purely as voice notes (no text caption).
 - ⚡ **Typing / Voice Indicators**: Displays "recording voice" or "typing" status in Telegram while generating responses.
 - 💬 **Command Handlers**: Includes `/start` and `/help` for clean user onboarding.
 - 🚀 **Render Keep-Alive Server**: Built-in HTTP health server running on port `PORT` (default `10000`) for seamless hosting as a Render Web Service.

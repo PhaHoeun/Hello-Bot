@@ -298,7 +298,6 @@ Friend's message: {user_text}
                             await context.bot.send_voice(
                                 chat_id=chat_id,
                                 voice=audio,
-                                caption=reply_text,
                                 reply_to_message_id=update.message.message_id,
                             )
                             voice_sent = True
@@ -309,7 +308,6 @@ Friend's message: {user_text}
                                 chat_id=chat_id,
                                 audio=audio,
                                 title=f"Voice Note ({'Sreymom' if has_khmer else 'Jenny'})",
-                                caption=reply_text,
                                 reply_to_message_id=update.message.message_id,
                             )
                             voice_sent = True
