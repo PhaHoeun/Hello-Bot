@@ -28,6 +28,9 @@ except ImportError:
                     key, val = line.split("=", 1)
                     os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
 
+import io
+import wave
+
 # Optional google-genai
 try:
     from google import genai
@@ -35,12 +38,6 @@ try:
 except ImportError:
     genai = None
     types = None
-
-# Optional edge-tts
-try:
-    import edge_tts
-except ImportError:
-    edge_tts = None
 
 # =========================================================
 # CONFIGURATION & API KEYS
@@ -52,27 +49,46 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 raw_model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
 MODEL_NAME = raw_model if raw_model else "gemini-3.8-flash"
 
-# Natural human voice configuration
-# Sreymom (Female) is significantly softer, warmer, and more human-sounding than Piseth in Khmer.
-# Jenny (Female) / Brian (Male) provide natural, expressive, conversational everyday English speech.
+# Google AI Studio human voice configuration (Aoede, Puck, Charon, Fenrir, Kore)
 DEFAULT_VOICE_GENDER = os.environ.get("VOICE_GENDER", "male").lower()
-VOICE_RATE = os.environ.get("VOICE_RATE", "+0%")  # Natural conversational tempo
-VOICE_PITCH = os.environ.get("VOICE_PITCH", "+0Hz")
 
 VOICE_MAP = {
     "female": {
-        "gemini_voice": "Aoede",  # Google AI Studio ultra-natural female voice
-        "khmer": "km-KH-kore",
-        "english": "en-US-Jenny",
-        "label": "ស្រី (Google AI Studio: Aoede / kore)",
+        "gemini_voice": "Aoede",  # Google AI Studio female voice
+        "label": "ស្រី (Google AI Studio: Aoede)",
     },
     "male": {
-        "gemini_voice": "Puck",   # Google AI Studio ultra-natural male voice
-        "khmer": "km-KH-charon",
-        "english": "en-US-Brian",
-        "label": "ប្រុស (Google AI Studio: Puck / charon)",
+        "gemini_voice": "Puck",   # Google AI Studio male voice
+        "label": "ប្រុស (Google AI Studio: Puck)",
     },
 }
+
+
+def pcm_to_wav_bytes(audio_bytes: bytes, mime_type: str = "") -> bytes:
+    """Convert raw 16-bit PCM from Google AI Studio into a valid WAV format for Telegram."""
+    if not audio_bytes:
+        return audio_bytes
+    # If it already contains RIFF/WAV header, return directly
+    if len(audio_bytes) > 4 and audio_bytes[:4] == b"RIFF":
+        return audio_bytes
+
+    sample_rate = 24000
+    if mime_type and "rate=" in mime_type:
+        match = re.search(r"rate=(\d+)", mime_type)
+        if match:
+            try:
+                sample_rate = int(match.group(1))
+            except ValueError:
+                pass
+
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wav_out:
+        wav_out.setnchannels(1)       # Mono
+        wav_out.setsampwidth(2)       # 16-bit PCM = 2 bytes per sample
+        wav_out.setframerate(sample_rate)
+        wav_out.writeframes(audio_bytes)
+    return buf.getvalue()
+
 
 
 def clean_text_for_tts(text: str) -> str:
@@ -200,17 +216,16 @@ def get_ai_response(prompt: str) -> str | None:
 
 
 def get_gemini_audio_response(prompt: str, voice_name: str = "Aoede") -> tuple[bytes | None, str | None]:
-    """Generate human speech directly from Gemini using Google AI Studio voices (Aoede, Puck, etc)."""
+    """Generate human speech directly using Google AI Studio native voices (Aoede, Puck, Kore, Fenrir, Charon)."""
     if not ai_client or types is None:
         return None, None
 
-    # Supported models that can produce direct audio modality (using gemini-3.6-flash as recommended by Google)
+    # Google AI Studio models supporting native audio modality
     models_to_try = [
-        MODEL_NAME,
-        "gemini-3.6-flash",
-        "gemini-3.7-flash",
-        "gemini-3.8-flash",
         "gemini-2.0-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash-lite",
+        MODEL_NAME,
     ]
     seen = set()
     models_to_try = [m for m in models_to_try if not (m in seen or seen.add(m))]
@@ -235,14 +250,17 @@ def get_gemini_audio_response(prompt: str, voice_name: str = "Aoede") -> tuple[b
                 candidate = response.candidates[0]
                 audio_bytes = None
                 text_content = ""
+                mime_type = ""
                 if candidate.content and candidate.content.parts:
                     for part in candidate.content.parts:
                         if getattr(part, "inline_data", None) and part.inline_data.data:
                             audio_bytes = part.inline_data.data
+                            mime_type = getattr(part.inline_data, "mime_type", "") or ""
                         if getattr(part, "text", None):
                             text_content += part.text
                 if audio_bytes:
-                    return audio_bytes, text_content.strip()
+                    wav_data = pcm_to_wav_bytes(audio_bytes, mime_type)
+                    return wav_data, text_content.strip()
         except Exception as err:
             print(f"Gemini native audio with {model} unavailable: {err}", flush=True)
             continue
@@ -257,7 +275,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "👋 **សួស្តី! Hello!**\n\n"
         "🤖 ខ្ញុំជា **AI Telegram Bot** ដំណើរការដោយ **Google Gemini**!\n"
-        "🎙️ ខ្ញុំឆ្លើយតបជា **សំឡេងមនុស្សពិតៗ (Natural Voice)** ទាំងជាភាសាខ្មែរ និងភាសាអង់គ្លេស។\n\n"
+        "🎙️ ខ្ញុំឆ្លើយតបជា **សំឡេង Google AI Studio (Aoede / Puck)** ដោយផ្ទាល់។\n\n"
         "✨ *សាកល្បងផ្ញើសារសួរសំណួរអ្វីមួយមកកាន់ខ្ញុំឥឡូវនេះ!*\n"
         "📌 វាយ `/voice` ដើម្បីជ្រើសរើសសំឡេងស្រី ឬប្រុស\n"
         "📌 វាយ `/help` ដើម្បីមើលព័ត៌មានបន្ថែម។"
@@ -270,8 +288,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "ℹ️ **ជំនួយ និងរបៀបប្រើប្រាស់ / Bot Help**:\n\n"
         "1. ផ្ញើសារជាអក្សរធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសំឡេងមនុស្សពិតៗមកវិញភ្លាមៗ។\n"
-        "2. 🎙️ **Google AI Studio Voices**: Aoede (ស្រី) & Puck (ប្រុស) សំឡេងមនុស្សពិត ១០០%។\n"
-        "3. 🇰🇭 ភាសាខ្មែរ: សំឡេង kore / charon ធម្មជាតិទន់ភ្លន់។\n\n"
+        "2. 🎙️ **Google AI Studio Voices**: Aoede (ស្រី) & Puck (ប្រុស) សំឡេងមនុស្សពិត ១០០%។\n\n"
         "⚙️ **Commands**:\n"
         "• `/start` - ចាប់ផ្តើម និងស្វាគមន៍\n"
         "• `/voice` - ប្តូរសំឡេង (Aoede / Puck)\n"
@@ -281,17 +298,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler for /voice command to switch between female and male natural voices."""
+    """Handler for /voice command to switch between female and male Google AI Studio voices."""
     args = context.args
     current_gender = context.user_data.get("voice_gender", DEFAULT_VOICE_GENDER)
 
     if args:
         chosen = args[0].lower()
-        if chosen in ["female", "girl", "woman", "aoede", "kore", "jenny", "ស្រី"]:
+        if chosen in ["female", "girl", "woman", "aoede", "kore", "ស្រី"]:
             context.user_data["voice_gender"] = "female"
-            await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ស្រី (Google AI Studio: Aoede)** ដែលស្តាប់ទៅដូចមនុស្សពិតៗ!", parse_mode="Markdown")
+            await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ស្រី (Google AI Studio: Aoede)**!", parse_mode="Markdown")
             return
-        elif chosen in ["male", "boy", "man", "puck", "charon", "brian", "ប្រុស"]:
+        elif chosen in ["male", "boy", "man", "puck", "charon", "fenrir", "ប្រុស"]:
             context.user_data["voice_gender"] = "male"
             await update.message.reply_text("✅ បានប្តូរទៅសំឡេង **ប្រុស (Google AI Studio: Puck)**!", parse_mode="Markdown")
             return
@@ -302,8 +319,8 @@ async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     label = VOICE_MAP[new_gender]["label"]
     await update.message.reply_text(
         f"🎙️ **បានប្តូរសំឡេងទៅ**: {label}\n\n"
-        f"👉 វាយ `/voice female` សម្រាប់សំឡេងស្រី\n"
-        f"👉 វាយ `/voice male` សម្រាប់សំឡេងប្រុស",
+        f"👉 វាយ `/voice female` សម្រាប់សំឡេងស្រី (Aoede)\n"
+        f"👉 វាយ `/voice male` សម្រាប់សំឡេងប្រុស (Puck)",
         parse_mode="Markdown",
     )
 
@@ -326,6 +343,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         has_khmer = bool(re.search(r"[\u1780-\u17FF]", user_text))
         user_gender = context.user_data.get("voice_gender", DEFAULT_VOICE_GENDER)
         voice_info = VOICE_MAP.get(user_gender, VOICE_MAP["female"])
+        gemini_voice = voice_info.get("gemini_voice", "Aoede")
 
         if has_khmer:
             prompt = f"""
@@ -335,11 +353,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 2. ហាមដាច់ខាតប្រើភាសាផ្លូវការ រដ្ឋបាល ឬភាសាសៀវភៅ ដូចជា "តើខ្ញុំអាចជួយអ្វីបាន"។
 3. អាចប្រើពាក្យធម្មជាតិដូចជា "បាទបង/ចាសបង", "អរគុណច្រើន!", "ហ្នឹងហើយ", "អូ!", "មែនតើ" តាមការគួរសម។
 4. ឆ្លើយខ្លីៗល្មមស្តាប់ត្រឹម 1 ទៅ 2 ឃ្លា (ប្រហែល 5 ទៅ 10 វិនាទី)។
-5. សំខាន់៖ ត្រូវដាក់ដកឃ្លា ឬសញ្ញាក្បៀស (,) និងសញ្ញាខណ្ឌ (។) ចន្លោះឃ្លានីមួយៗឱ្យបានត្រឹមត្រូវ ដើម្បីឱ្យអ្នកនិយាយមានដង្ហើមដក និងចង្វាក់ដូចមនុស្សពិត។
-6. ហាមប្រើសញ្ញាផ្កាយ (*), hashtag (#), emoji ឬ markdown ព្រោះសារនេះនឹងត្រូវអានផ្ទាល់ជាសំឡេង។
+5. ហាមប្រើសញ្ញាផ្កាយ (*), hashtag (#), emoji ឬ markdown ព្រោះសារនេះនឹងត្រូវអានផ្ទាល់ជាសំឡេង។
 សាររបស់មិត្ត: {user_text}
 """
-            voice_name = voice_info["khmer"]
         else:
             prompt = f"""
 You are recording a quick, authentic voice note on Telegram for a close friend.
@@ -351,11 +367,8 @@ Crucial rules to sound completely human (NOT like an AI assistant or robot):
 5. Absolutely NO emojis, asterisks (*), hashtags (#), bullet points, or markdown formatting, as this text is read aloud directly.
 Friend's message: {user_text}
 """
-            voice_name = voice_info["english"]
 
-        gemini_voice = voice_info.get("gemini_voice", "Aoede")
-
-        # 1. Try Google AI Studio's native human voice first
+        # 1. Generate Google AI Studio native human voice
         voice_sent = False
         audio_bytes, gemini_text = await asyncio.to_thread(get_gemini_audio_response, prompt, gemini_voice)
 
@@ -371,16 +384,18 @@ Friend's message: {user_text}
                             await context.bot.send_voice(
                                 chat_id=chat_id,
                                 voice=audio,
+                                caption=gemini_text if gemini_text else None,
                                 reply_to_message_id=update.message.message_id,
                             )
                             voice_sent = True
                         except Exception:
-                            # If send_voice rejects WAV container, fallback to send_audio
+                            # If send_voice rejects WAV container, send as audio file
                             audio.seek(0)
                             await context.bot.send_audio(
                                 chat_id=chat_id,
                                 audio=audio,
                                 title=f"Voice Note ({gemini_voice})",
+                                caption=gemini_text if gemini_text else None,
                                 reply_to_message_id=update.message.message_id,
                             )
                             voice_sent = True
@@ -396,7 +411,7 @@ Friend's message: {user_text}
                     except OSError:
                         pass
 
-        # 2. Fallback to Gemini Text + edge-tts if native audio is unavailable
+        # 2. If voice couldn't be generated, fallback directly to text message (NO edge-tts)
         if not voice_sent:
             reply_text = gemini_text or await asyncio.to_thread(get_ai_response, prompt)
             if not reply_text:
@@ -405,41 +420,10 @@ Friend's message: {user_text}
 
             print(f"Bot response: {reply_text}", flush=True)
 
-            # Strip emojis and markdown formatting to guarantee natural speech
-            clean_speech = clean_text_for_tts(reply_text)
-            if not clean_speech:
-                clean_speech = reply_text
-
-            voice_file = f"voice_{uuid.uuid4().hex[:8]}_{update.message.message_id}.ogg"
-            if edge_tts is not None:
-                try:
-                    communicate = edge_tts.Communicate(clean_speech, voice=voice_name, rate=VOICE_RATE, pitch=VOICE_PITCH)
-                    await communicate.save(voice_file)
-
-                    if os.path.exists(voice_file) and os.path.getsize(voice_file) > 0:
-                        with open(voice_file, "rb") as audio:
-                            await context.bot.send_voice(
-                                chat_id=chat_id,
-                                voice=audio,
-                                reply_to_message_id=update.message.message_id,
-                            )
-                        voice_sent = True
-                        print(f"Voice sent successfully using {voice_name}!", flush=True)
-                except Exception as tts_err:
-                    print(f"TTS conversion failed: {tts_err}", flush=True)
-                finally:
-                    if os.path.exists(voice_file):
-                        try:
-                            os.remove(voice_file)
-                        except OSError:
-                            pass
-
-            # 3. If voice synthesis failed or edge_tts is unavailable, fallback to text message
-            if not voice_sent:
-                await update.message.reply_text(
-                    reply_text,
-                    reply_to_message_id=update.message.message_id,
-                )
+            await update.message.reply_text(
+                reply_text,
+                reply_to_message_id=update.message.message_id,
+            )
 
     except Exception as e:
         print(f"Error in handle_message: {e}", flush=True)

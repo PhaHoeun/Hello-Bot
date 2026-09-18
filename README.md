@@ -1,16 +1,16 @@
 # 🤖 AI Telegram Bot (Google Gemini + Voice + Render)
 
-An intelligent Telegram AI Bot built with **Python**, powered by **Google Gemini AI**, with real-time text-to-speech voice generation (**Edge-TTS**) supporting both **Khmer** (ភាសាខ្មែរ) and **English**, pre-configured for 24/7 deployment on the **Render Dashboard**.
+An intelligent Telegram AI Bot built with **Python**, powered by **Google Gemini AI**, with real-time human voice generation directly from **Google AI Studio** (`Aoede` / `Puck`) supporting both **Khmer** (ភាសាខ្មែរ) and **English**, pre-configured for 24/7 deployment on the **Render Dashboard**.
 
 ---
 
 ## 🌟 Key Features
 
-- 🧠 **Google Gemini AI**: Utilizes Google's fast, multimodal Gemini models (`gemini-2.5-flash` / `gemini-2.0-flash`).
-- 🎙️ **Voice & Audio Notes**: Automatically generates natural speech responses:
-  - 🇰🇭 **Khmer voice**: `km-KH-PisethNeural`
-  - 🇺🇸 **English voice**: `en-US-AndrewNeural`
-  - Voice bubbles include message text as a caption, with automatic text fallback if audio synthesis fails.
+- 🧠 **Google Gemini AI**: Utilizes Google's fast, multimodal Gemini models (`gemini-2.0-flash` / `gemini-2.5-flash`).
+- 🎙️ **Google AI Studio Voice Notes**: Generates natural speech responses directly from Gemini:
+  - 👩 **Female voice**: `Aoede`
+  - 👨 **Male voice**: `Puck`
+  - Voice bubbles include message text as a caption, with automatic clean text fallback if audio synthesis fails.
 - ⚡ **Typing / Voice Indicators**: Displays "recording voice" or "typing" status in Telegram while generating responses.
 - 💬 **Command Handlers**: Includes `/start` and `/help` for clean user onboarding.
 - 🚀 **Render Keep-Alive Server**: Built-in HTTP health server running on port `PORT` (default `10000`) for seamless hosting as a Render Web Service.
