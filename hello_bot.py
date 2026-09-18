@@ -133,9 +133,15 @@ def get_ai_response(prompt: str) -> str | None:
     if not ai_client:
         return "⚠️ Gemini AI client is not configured. Please verify GEMINI_API_KEY."
 
-    # Tiered models to try in order: latest 3.8 down to 3.7, 3.6, 3.5
+    # Tiered models to try in order with independent quota pools to prevent 429 rate limit  
     models_to_try = [
         MODEL_NAME,
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
         "gemini-3.8-flash",
         "gemini-3.7-flash",
         "gemini-3.6-flash",
