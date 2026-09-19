@@ -55,8 +55,8 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 raw_model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip()
 MODEL_NAME = raw_model if raw_model else "gemini-3.8-flash"
 
-# Natural human voice configuration (Sreymom Neural Khmer)
-KHMER_VOICE = "km-KH-SreymomNeural"
+# Natural human voice configuration (Piseth Neural Khmer) 
+KHMER_VOICE = "km-KH-PisethNeural"
 ENGLISH_VOICE = "en-US-JennyNeural"
 VOICE_RATE = os.environ.get("VOICE_RATE", "-4%")     # Slightly relaxed tempo for authentic human cadence
 VOICE_PITCH = os.environ.get("VOICE_PITCH", "+1Hz")  # Warm, gentle, friendly human tone
@@ -200,7 +200,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     welcome_text = (
         "👋 **សួស្តី! Hello!**\n\n"
         "🤖 ខ្ញុំជា **AI Telegram Bot** ដំណើរការដោយ **Google Gemini**!\n"
-        "🎙️ ខ្ញុំឆ្លើយតបជា **សារសំឡេង Neural AI (Sreymom)** ស្រទន់ រួសរាយ និងធម្មជាតិដូចមនុស្សពិត។\n\n"
+        "🎙️ ខ្ញុំឆ្លើយតបជា **សារសំឡេង Neural AI (Piseth)** ស្រទន់ រួសរាយ និងធម្មជាតិដូចមនុស្សពិត។\n\n"
         "✨ *សាកល្បងផ្ញើសារសួរសំណួរអ្វីមួយមកកាន់ខ្ញុំឥឡូវនេះ!*\n"
         "📌 វាយ `/help` ដើម្បីមើលព័ត៌មានបន្ថែម។"
     )
@@ -212,7 +212,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = (
         "ℹ️ **ជំនួយ និងរបៀបប្រើប្រាស់ / Bot Help**:\n\n"
         "1. ផ្ញើសារជាអក្សរធម្មតា ខ្ញុំនឹងឆ្លើយតបជាសារសំឡេង (Voice Note) ស្រទន់ធម្មជាតិមកវិញភ្លាមៗ។\n"
-        "2. 🇰🇭 ភាសាខ្មែរ: សំឡេង Sreymom Neural ធម្មជាតិទន់ភ្លន់។\n"
+        "2. 🇰🇭 ភាសាខ្មែរ: សំឡេង Piseth Neural ធម្មជាតិទន់ភ្លន់។\n"
         "3. 🇺🇸 ភាសាអង់គ្លេស: សំឡេង Jenny Neural។\n\n"
         "⚙️ **Commands**:\n"
         "• `/start` - ចាប់ផ្តើម និងស្វាគមន៍\n"
@@ -226,7 +226,7 @@ async def voice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler for /voice command."""
     await update.message.reply_text(
         "🎙️ **Natural Voice Settings**:\n\n"
-        "• 🇰🇭 **ភាសាខ្មែរ**: សំឡេងស្រី Sreymom Neural (ទន់ភ្លន់ ធម្មជាតិ)\n"
+        "• 🇰🇭 **ភាសាខ្មែរ**: សំឡេងស្រី Piseth Neural (ទន់ភ្លន់ ធម្មជាតិ)\n"
         "• 🇺🇸 **English**: សំឡេង Jenny Neural\n\n"
         "✨ រាល់សារដែលអ្នកផ្ញើមក Bot នឹងឆ្លើយតបជា Voice Note ភ្លាមៗ!",
         parse_mode="Markdown",
@@ -282,7 +282,7 @@ Friend's message: {user_text}
 
         print(f"Bot response: {reply_text}", flush=True)
 
-        # 2. Synthesize High-Fidelity Natural Voice (Sreymom for Khmer, Jenny for English)
+        # 2. Synthesize High-Fidelity Natural Voice (Piseth for Khmer, Jenny for English)
         voice_sent = False
         voice_name = KHMER_VOICE if has_khmer else ENGLISH_VOICE
         clean_speech = clean_text_for_tts(reply_text) or reply_text
@@ -313,7 +313,7 @@ Friend's message: {user_text}
                             await context.bot.send_audio(
                                 chat_id=chat_id,
                                 audio=audio,
-                                title=f"Voice Note ({'Sreymom' if has_khmer else 'Jenny'})",
+                                title=f"Voice Note ({'Piseth' if has_khmer else 'Jenny'})",
                                 reply_to_message_id=update.message.message_id,
                             )
                             voice_sent = True
